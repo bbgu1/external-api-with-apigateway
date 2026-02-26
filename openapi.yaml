@@ -1,0 +1,550 @@
+openapi: 3.0.3
+info:
+  title: AWS API Gateway Demo API
+  description: |
+    A comprehensive serverless API demonstrating enterprise-grade multi-tenant architecture 
+    with AWS managed services. This API provides product catalog management and order 
+    processing capabilities with built-in authentication, rate limiting, and full observability.
+    
+    ## Features
+    - Multi-tenant SaaS architecture with complete tenant isolation
+    - OAuth 2.0 client credentials flow for M2M authentication
+    - Tiered rate limiting (Basic, Standard, Premium)
+    - AWS X-Ray distributed tracing
+    - CloudWatch monitoring and dashboards
+    
+    ## Authentication
+    All endpoints require a valid JWT token obtained from AWS Cognito using OAuth 2.0 
+    client credentials flow. Include the token in the Authorization header as a Bearer token.
+    
+    ## Multi-Tenancy
+    Tenant isolation is enforced at all layers. The tenant ID is extracted from the JWT 
+    token and used to partition data in DynamoDB. Cross-tenant access attempts are logged 
+    and rejected with 403 Forbidden.
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+
+servers:
+  - url: https://{api-id}.execute-api.{region}.amazonaws.com/{stage}
+    description: API Gateway endpoint
+    variables:
+      api-id:
+        default: your-api-id
+        description: API Gateway REST API ID
+      region:
+        default: us-east-1
+        description: AWS region
+      stage:
+        default: prod
+        description: Deployment stage
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Catalog
+    description: Product catalog operations
+  - name: Orders
+    description: Order management operations
+
+paths:
+  /catalog:
+    get:
+      tags:
+        - Catalog
+      summary: List all products
+      description: |
+        Retrieve all products for the authenticated tenant. Products are filtered 
+        by tenant ID to ensure isolation.
+      operationId: listProducts
+      responses:
+        '200':
+          description: Successful response with list of products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+              example:
+                statusCode: 200
+                data:
+                  - productId: prod-001
+                    name: Widget Pro
+                    description: Professional grade widget
+                    price: 99.99
+                    currency: USD
+                    category: Electronics
+                    inStock: true
+                  - productId: prod-002
+                    name: Gadget Plus
+                    description: Advanced gadget
+                    price: 149.99
+                    currency: USD
+                    category: Electronics
+                    inStock: true
+                tenantId: tenant-123
+                requestId: abc-123-def-456
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /catalog/{productId}:
+    get:
+      tags:
+        - Catalog
+      summary: Get product details
+      description: |
+        Retrieve details for a specific product. The product must belong to the 
+        authenticated tenant.
+      operationId: getProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: Unique identifier of the product
+          schema:
+            type: string
+            example: prod-001
+      responses:
+        '200':
+          description: Successful response with product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+              example:
+                statusCode: 200
+                data:
+                  productId: prod-001
+                  name: Widget Pro
+                  description: Professional grade widget
+                  price: 99.99
+                  currency: USD
+                  category: Electronics
+                  inStock: true
+                  createdAt: '2024-01-15T10:30:00Z'
+                  updatedAt: '2024-01-15T10:30:00Z'
+                tenantId: tenant-123
+                requestId: abc-123-def-456
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /orders:
+    post:
+      tags:
+        - Orders
+      summary: Create a new order
+      description: |
+        Create a new order for the authenticated tenant. The order is validated 
+        and assigned a unique order ID. The product must exist and belong to the tenant.
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            example:
+              customerId: cust-456
+              productId: prod-001
+              quantity: 2
+      responses:
+        '200':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              example:
+                statusCode: 200
+                data:
+                  orderId: order-789
+                  customerId: cust-456
+                  productId: prod-001
+                  quantity: 2
+                  totalPrice: 199.98
+                  currency: USD
+                  status: PENDING
+                  createdAt: '2024-01-15T14:20:00Z'
+                tenantId: tenant-123
+                requestId: abc-123-def-456
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /orders/{orderId}:
+    get:
+      tags:
+        - Orders
+      summary: Get order details
+      description: |
+        Retrieve details for a specific order. The order must belong to the 
+        authenticated tenant.
+      operationId: getOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Unique identifier of the order
+          schema:
+            type: string
+            example: order-789
+      responses:
+        '200':
+          description: Successful response with order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              example:
+                statusCode: 200
+                data:
+                  orderId: order-789
+                  customerId: cust-456
+                  productId: prod-001
+                  quantity: 2
+                  totalPrice: 199.98
+                  currency: USD
+                  status: PENDING
+                  createdAt: '2024-01-15T14:20:00Z'
+                  updatedAt: '2024-01-15T14:20:00Z'
+                tenantId: tenant-123
+                requestId: abc-123-def-456
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from AWS Cognito using OAuth 2.0 client credentials flow.
+        
+        To obtain a token:
+        1. Encode your client_id:client_secret as Base64
+        2. POST to https://{cognito-domain}/oauth2/token
+        3. Include header: Authorization: Basic {base64_credentials}
+        4. Include body: grant_type=client_credentials&scope=api/read api/write
+        5. Extract access_token from response
+        6. Use as: Authorization: Bearer {access_token}
+
+  schemas:
+    Product:
+      type: object
+      required:
+        - productId
+        - name
+        - price
+        - currency
+      properties:
+        productId:
+          type: string
+          description: Unique identifier for the product
+          example: prod-001
+        name:
+          type: string
+          description: Product name
+          example: Widget Pro
+        description:
+          type: string
+          description: Product description
+          example: Professional grade widget
+        price:
+          type: number
+          format: double
+          description: Product price
+          example: 99.99
+        currency:
+          type: string
+          description: Currency code (ISO 4217)
+          example: USD
+        category:
+          type: string
+          description: Product category
+          example: Electronics
+        inStock:
+          type: boolean
+          description: Whether the product is in stock
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when product was created
+          example: '2024-01-15T10:30:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when product was last updated
+          example: '2024-01-15T10:30:00Z'
+
+    Order:
+      type: object
+      required:
+        - orderId
+        - customerId
+        - productId
+        - quantity
+        - totalPrice
+        - currency
+        - status
+      properties:
+        orderId:
+          type: string
+          description: Unique identifier for the order
+          example: order-789
+        customerId:
+          type: string
+          description: Customer identifier
+          example: cust-456
+        productId:
+          type: string
+          description: Product identifier
+          example: prod-001
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity ordered
+          example: 2
+        totalPrice:
+          type: number
+          format: double
+          description: Total order price
+          example: 199.98
+        currency:
+          type: string
+          description: Currency code (ISO 4217)
+          example: USD
+        status:
+          type: string
+          enum:
+            - PENDING
+            - CONFIRMED
+            - SHIPPED
+            - DELIVERED
+            - CANCELLED
+          description: Order status
+          example: PENDING
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when order was created
+          example: '2024-01-15T14:20:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when order was last updated
+          example: '2024-01-15T14:20:00Z'
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerId
+        - productId
+        - quantity
+      properties:
+        customerId:
+          type: string
+          description: Customer identifier
+          example: cust-456
+        productId:
+          type: string
+          description: Product identifier
+          example: prod-001
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity to order
+          example: 2
+
+    ProductListResponse:
+      type: object
+      required:
+        - statusCode
+        - data
+        - tenantId
+        - requestId
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        tenantId:
+          type: string
+          description: Tenant identifier from JWT token
+          example: tenant-123
+        requestId:
+          type: string
+          description: Unique request identifier for tracing
+          example: abc-123-def-456
+
+    ProductResponse:
+      type: object
+      required:
+        - statusCode
+        - data
+        - tenantId
+        - requestId
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        data:
+          $ref: '#/components/schemas/Product'
+        tenantId:
+          type: string
+          description: Tenant identifier from JWT token
+          example: tenant-123
+        requestId:
+          type: string
+          description: Unique request identifier for tracing
+          example: abc-123-def-456
+
+    OrderResponse:
+      type: object
+      required:
+        - statusCode
+        - data
+        - tenantId
+        - requestId
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        data:
+          $ref: '#/components/schemas/Order'
+        tenantId:
+          type: string
+          description: Tenant identifier from JWT token
+          example: tenant-123
+        requestId:
+          type: string
+          description: Unique request identifier for tracing
+          example: abc-123-def-456
+
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - error
+        - message
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Error type
+          example: BadRequest
+        message:
+          type: string
+          description: Human-readable error message
+          example: Missing required field productId
+        tenantId:
+          type: string
+          description: Tenant identifier from JWT token (if available)
+          example: tenant-123
+        requestId:
+          type: string
+          description: Unique request identifier for tracing
+          example: abc-123-def-456
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when error occurred
+          example: '2024-01-15T14:30:00Z'
+
+  responses:
+    BadRequestError:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 400
+            error: BadRequest
+            message: 'Missing required field: productId'
+            tenantId: tenant-123
+            requestId: abc-123-def-456
+            timestamp: '2024-01-15T14:30:00Z'
+
+    UnauthorizedError:
+      description: Unauthorized - invalid or missing JWT token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: Unauthorized
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            error: NotFound
+            message: Product prod-999 not found
+            tenantId: tenant-123
+            requestId: abc-123-def-456
+            timestamp: '2024-01-15T14:30:00Z'
+
+    TooManyRequestsError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: Too Many Requests
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 500
+            error: InternalServerError
+            message: An error occurred processing your request
+            tenantId: tenant-123
+            requestId: abc-123-def-456
+            timestamp: '2024-01-15T14:30:00Z'

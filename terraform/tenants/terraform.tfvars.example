@@ -1,0 +1,43 @@
+# Tenant Lifecycle Configuration
+# Copy this file to terraform.tfvars and adjust values as needed.
+# All core infrastructure references are resolved via data sources —
+# only project_name and environment must match the core deployment.
+
+aws_region   = "us-east-1"
+environment  = "dev"
+project_name = "api-gateway-demo"
+
+# Tier-based rate limiting (must match core infrastructure tiers)
+tiers = {
+  "basic" = {
+    rate_limit   = 10
+    burst_limit  = 20
+    quota_limit  = 100000
+    quota_period = "MONTH"
+  }
+  "standard" = {
+    rate_limit   = 100
+    burst_limit  = 200
+    quota_limit  = 1000000
+    quota_period = "MONTH"
+  }
+  "premium" = {
+    rate_limit   = 1000
+    burst_limit  = 2000
+    quota_limit  = 10000000
+    quota_period = "MONTH"
+  }
+}
+
+# Tenant definitions
+tenants = {
+  "tenant-basic-001" = {
+    tier = "basic"
+  }
+  "tenant-standard-001" = {
+    tier = "standard"
+  }
+  "tenant-premium-001" = {
+    tier = "premium"
+  }
+}

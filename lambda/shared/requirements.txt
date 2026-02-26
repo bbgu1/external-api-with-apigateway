@@ -1,0 +1,9 @@
+# AWS Lambda Layer Dependencies
+# These dependencies are shared across all Lambda functions
+
+# AWS X-Ray SDK for distributed tracing
+aws-xray-sdk==2.12.0
+
+# AWS SDK for Python (boto3 is included in Lambda runtime, but we specify for local dev)
+boto3==1.34.34
+botocore==1.34.34

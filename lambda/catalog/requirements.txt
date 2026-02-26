@@ -1,0 +1,5 @@
+# Catalog Lambda Dependencies
+# These are included in the shared Lambda layer
+
+boto3>=1.26.0
+aws-xray-sdk>=2.12.0

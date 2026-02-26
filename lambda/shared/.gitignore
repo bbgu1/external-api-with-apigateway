@@ -1,0 +1,5 @@
+# Lambda layer build artifacts
+lambda-layer.zip
+layer/
+*.pyc
+__pycache__/
